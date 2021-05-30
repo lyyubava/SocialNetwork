@@ -3,6 +3,7 @@ from api.utils.schema import ma
 from marshmallow import fields
 from passlib.hash import pbkdf2_sha256 as sha256
 
+
 class User(db.Model):
     id = db.Column(db.Integer, primary_key=True, autoincrement=True)
     first_name = db.Column(db.String(30), nullable=False)
@@ -19,19 +20,21 @@ class User(db.Model):
 
     @property
     def password(self):
+
         raise AttributeError('password is write only field')
 
     @password.setter
     def password(self, password):
         self.hash_password = sha256.hash(password)
 
-    def check_password(self):
-        return sha256.verify(self.hash_password, self.password)
+    def check_password(self, password):
+        return sha256.verify(password, self.hash_password)
 
     def create(self):
         db.session.add(self)
         db.session.commit()
         return self
+
 
 class Post(db.Model):
     id = db.Column(db.Integer, primary_key=True, autoincrement=True)
@@ -52,12 +55,11 @@ class Post(db.Model):
 class PostSchema(ma.SQLAlchemySchema):
     class Meta:
         model = Post
-        sqla_session = db.session
 
-    id = fields.Number(dump_only=True)
+    id = fields.Integer(dump_only=True)
     title = fields.String(required=True)
     body = fields.String(required=True)
-    user_id = fields.Number()
+    user_id = fields.Integer()
 
 
 class UserSchema(ma.SQLAlchemySchema):
