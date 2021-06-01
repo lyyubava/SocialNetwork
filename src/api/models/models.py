@@ -42,6 +42,7 @@ class Post(db.Model):
     photo = db.Column(db.String(20), nullable=True)
     created = db.Column(db.DateTime, server_default=db.func.now())
     user_id = db.Column(db.Integer, db.ForeignKey('user.id'))
+    likes = db.Column(db.Integer)
 
     def __init__(self, *args, **kwargs):
         super(Post, self).__init__(*args, **kwargs)
