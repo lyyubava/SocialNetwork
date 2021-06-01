@@ -7,6 +7,7 @@ from api.utils.database import db
 from api.routes.users_routes import user_routes
 from api.utils.schema import ma
 from flask_jwt_extended import JWTManager
+from flask_migrate import Migrate
 
 app = Flask(__name__)
 app.config.from_object(Configuration)
@@ -40,7 +41,8 @@ def not_found(e):
 jwt = JWTManager(app)
 db.init_app(app)
 ma.init_app(app)
-
+migrate = Migrate(app, db)
+migrate.init_app(app, db)
 # with app.app_context():
 #     app.app_context().pop()
 #     app.app_context().push()
