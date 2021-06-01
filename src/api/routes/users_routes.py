@@ -15,12 +15,12 @@ def authenticate_user():
     try:
         data = request.get_json()
         current_user = User.query.filter_by(username=data['username']).first()
-        print(f'AVA: {current_user.avatar}')
         if not current_user:
             return response_with(resp.SERVER_ERROR_404)
         if current_user.check_password(data['password']):
             access_token = create_access_token(identity=data['username'])
-            return response_with(resp.SUCCESS_201, value={'message': 'Logged in as {}'.format(current_user.username), "access_token": access_token})
+            return response_with(resp.SUCCESS_201, value={'message': 'Logged in as {}'.format(current_user.username),
+                                                          "access_token": access_token})
         else:
             return response_with(resp.UNAUTHORIZED_401)
 
@@ -30,7 +30,6 @@ def authenticate_user():
 
 
 @user_routes.route('/', methods=['POST'])
-@jwt_required
 def create_user():
     try:
         data = request.get_json()
@@ -38,7 +37,6 @@ def create_user():
 
         user = User(**(user_schema.load(data)))
         user.create()
-        print(user)
         return response_with(resp.SUCCESS_201)
 
     except Exception as e:
@@ -68,4 +66,19 @@ def display_posts(username):
         dumped_post = post_schema.dump(post)
         posts_list.append(dumped_post)
     return response_with(resp.SUCCESS_200, value={"post": posts_list})
+
+
+@user_routes.route('/<string:username>/create_post', methods=['POST'])
+def create_post(username):
+    user = User.query.filter_by(username=username).first()
+    if not user:
+        return response_with(resp.INVALID_FIELD_NAME_SENT_422)
+    data = request.get_json()
+    post_schema = PostSchema()
+    post = Post(**(post_schema.load(data)))
+    user.posts.append(post)
+    post.create()
+    return response_with(resp.SUCCESS_201)
+
+
 
