@@ -20,7 +20,6 @@ class User(db.Model):
 
     @property
     def password(self):
-
         raise AttributeError('password is write only field')
 
     @password.setter
@@ -53,6 +52,16 @@ class Post(db.Model):
         return self
 
 
+class PostLikes(db.Model):
+    id = db.Column(db.Integer, primary_key=True)
+    user_id = db.Column(db.Integer, db.ForeignKey('user.id'))
+    post_id = db.Column(db.Integer, db.ForeignKey('post.id'))
+    like_time = db.Column(db.DateTime, server_default=db.func.now())
+
+    def __init__(self, *args, **kwargs):
+        super(PostLikes, self).__init__(*args, **kwargs)
+
+
 class PostSchema(ma.SQLAlchemySchema):
     class Meta:
         model = Post
@@ -65,6 +74,7 @@ class PostSchema(ma.SQLAlchemySchema):
 class UserSchema(ma.SQLAlchemySchema):
     class Meta:
         model = User
+
     id = fields.Integer(dump_only=True)
     first_name = fields.String(required=True)
     last_name = fields.String(required=True)
@@ -72,8 +82,3 @@ class UserSchema(ma.SQLAlchemySchema):
     email = fields.String(required=True)
     password = fields.String(required=True)
     avatar = fields.String()
-
-
-
-
-
