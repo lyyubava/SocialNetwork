@@ -1,12 +1,14 @@
 from flask import Blueprint
-from flask import request
+from flask import request, jsonify
 from api.utils.responses import response_with
 from api.utils import responses as resp
 from api.models.models import User, UserSchema
 from api.models.models import Post, PostSchema
+from api.models.models import PostLikes
 from flask_jwt_extended import create_access_token
-from flask_jwt_extended import jwt_required
-
+from flask_jwt_extended import jwt_required, get_jwt_identity
+from api.utils.database import db
+from sqlalchemy import and_
 user_routes = Blueprint("user_routes", __name__)
 
 
@@ -49,8 +51,6 @@ def get_user(username):
     fetch = User.query.filter_by(username=username).first()
     user_schema = UserSchema()
     user = user_schema.dump(fetch)
-    # user = user_schema.dump(fetch)
-    # print(user)
     return response_with(resp.SUCCESS_200, value={"user": user})
 
 
@@ -69,6 +69,7 @@ def display_posts(username):
 
 
 @user_routes.route('/<string:username>/create_post', methods=['POST'])
+@jwt_required()
 def create_post(username):
     user = User.query.filter_by(username=username).first()
     if not user:
@@ -80,5 +81,62 @@ def create_post(username):
     post.create()
     return response_with(resp.SUCCESS_201)
 
+
+@user_routes.route('/like.<action>', methods=['POST'])
+def like_action(action):
+    data = request.get_json()
+    post_id = data["post_id"]
+    user_id = data["user_id"]
+    post = Post.query.filter_by(id=post_id).first()
+
+    if not post:
+        return response_with(resp.INVALID_FIELD_NAME_SENT_422)
+
+    if action == 'add':
+
+        if PostLikes.query.filter_by(user_id=user_id, post_id=post_id).first() is None:
+            if post.likes is None:
+                post.likes = 1
+            else:
+                post.likes += 1
+            # db.session.commit()
+            post_like = PostLikes(user_id=user_id, post_id=post_id)
+
+            db.session.add(post_like)
+            db.session.commit()
+            return response_with(resp.SUCCESS_201)
+
+        return jsonify(mesaage="is already liked")
+
+    elif action == 'delete':
+        if PostLikes.query.filter_by(user_id=user_id, post_id=post_id).first() is not None:
+            post.likes -= 1
+            post_unlike = PostLikes.query.filter_by(user_id=user_id, post_id=post_id).first()
+            db.session.delete(post_unlike)
+            db.session.commit()
+
+        else:
+            return jsonify(mesaage="you cannot unlike post that you haven`t liked :) ")
+
+    return response_with(resp.SUCCESS_201)
+
+
+@user_routes.route('/analytics', methods=['POST'])
+def get_analytics():
+    data = request.get_json()
+    date_from = data['date_from']
+    date_to = data['date_to']
+    total = PostLikes.query.filter(and_(PostLikes.like_time >= date_from, PostLikes.like_time <= date_to)).count()
+
+    return response_with(resp.SUCCESS_200, value={f"total from {date_from} to {date_to}": total})
+
+# Protect a route with jwt_required, which will kick out requests
+# without a valid JWT present.
+
+@user_routes.route("/protected", methods=["GET"])
+@jwt_required()
+def protected():
+    # Access the identity of the current user with get_jwt_identity
+    current_user = get_jwt_identity()
 
 
