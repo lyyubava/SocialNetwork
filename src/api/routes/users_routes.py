@@ -7,6 +7,7 @@ from api.models.models import User, UserSchema
 from api.models.models import Post, PostSchema
 from api.models.models import LoginHistory
 from api.models.models import PostLikes
+from api.models.models import RequestHistory
 from flask_jwt_extended import create_access_token
 from flask_jwt_extended import jwt_required, get_jwt_identity
 from api.utils.database import db
@@ -17,6 +18,17 @@ from datetime import datetime
 user_routes = Blueprint("user_routes", __name__)
 like_route = Blueprint("like_route", __name__)
 analytics_route = Blueprint("analytics_route", __name__)
+
+
+def request_tracker(f):
+    def wrapper(*args, **kwargs):
+        print("bitch")
+        req = RequestHistory(user_id=current_user.id, request_time=datetime.now(), description=f.__name__)
+        db.session.add(req)
+        db.session.commit()
+        return f(*args, **kwargs)
+
+    return wrapper
 
 
 @jwt.user_identity_loader
@@ -95,6 +107,7 @@ def display_posts(username):
 
 @user_routes.route('/create_post', methods=['POST'])
 @jwt_required()
+@request_tracker
 def create_post():
     user = User.query.filter_by(username=current_user.username).first()
     print(user)
@@ -110,6 +123,7 @@ def create_post():
 
 @like_route.route('/like.<action>', methods=['POST'])
 @jwt_required()
+@request_tracker
 def like_action(action):
     data = request.get_json()
     post_id = data["post_id"]
@@ -177,3 +191,17 @@ def get_user_activity(username):
         return response_with(resp.SUCCESS_200, value={f"last login of {username}": None})
 
     return response_with(resp.INVALID_FIELD_NAME_SENT_422, value={'help': f"user {username} not found"})
+
+
+@analytics_route.route('/<username>/requests',methods=['GET'])
+def get_request(username):
+    user = User.query.filter_by(username=username).first()
+    if user:
+        user_requests = RequestHistory.query.filter_by(user_id=user.id).order_by(RequestHistory.request_time.desc()).all()
+        requests = [{str(req.request_time): req.description} for req in user_requests]
+        return response_with(resp.SUCCESS_200, value={f"{username}'s requests": requests})
+    return response_with(resp.INVALID_FIELD_NAME_SENT_422, value={'help': f"user {username} not found"})
+
+
+
+
