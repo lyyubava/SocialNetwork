@@ -5,12 +5,14 @@ from api.utils import responses as resp
 from api.utils.jwt import jwt
 from api.models.models import User, UserSchema
 from api.models.models import Post, PostSchema
+from api.models.models import LoginHistory
 from api.models.models import PostLikes
 from flask_jwt_extended import create_access_token
 from flask_jwt_extended import jwt_required, get_jwt_identity
 from api.utils.database import db
 from sqlalchemy import and_, func
 from flask_jwt_extended import current_user
+from datetime import datetime
 
 user_routes = Blueprint("user_routes", __name__)
 like_route = Blueprint("like_route", __name__)
@@ -52,14 +54,21 @@ def authenticate_user():
             return response_with(resp.SERVER_ERROR_404)
         if user.check_password(data['password']):
             access_token = create_access_token(identity=user)
+            user_login_history = LoginHistory.query.filter_by(user_id=user.id).first()
+            if user_login_history is None:
+                user_login_history = LoginHistory(user_id=user.id, last_time=datetime.now())
+                db.session.add(user_login_history)
+            else:
+                user_login_history.last_time = datetime.now()
+            db.session.commit()
             return response_with(resp.SUCCESS_201, value={'message': 'Logged in as {}'.format(user.username),
                                                           "access_token": access_token})
         else:
-            return response_with(resp.UNAUTHORIZED_401)
+            return response_with(resp.INVALID_FIELD_NAME_SENT_422)
 
     except Exception as e:
         print(e)
-        return response_with(resp.UNAUTHORIZED_401)
+        return response_with(resp.INVALID_FIELD_NAME_SENT_422)
 
 
 @user_routes.route('/<string:username>', methods=['GET'])
@@ -133,9 +142,9 @@ def like_action(action):
             db.session.commit()
 
         else:
-            return jsonify(mesaage="you cannot unlike post that you haven`t liked :) ")
+            return jsonify(message="you cannot unlike post that you haven`t liked :) ")
 
-    return response_with(resp.SUCCESS_201)
+    return response_with(resp.SUCCESS_20s1)
 
 
 @analytics_route.route('/', methods=['GET'])
@@ -146,11 +155,25 @@ def get_analytics():
     date_to = data['date_to']
     total = db.session.query(func.count(PostLikes.user_id),
                              func.date(PostLikes.like_time)).filter(and_(PostLikes.like_time >= date_from,
-                                                                         PostLikes.like_time <= date_to)).group_by(func.date(PostLikes.like_time)).all()
+                                                                         PostLikes.like_time <= date_to)).group_by(
+        func.date(PostLikes.like_time)).all()
     for amount, date in total:
         returned_dict[amount] = date
 
-    return response_with(resp.SUCCESS_200, value={f"total amount of likes from {date_from} to {date_to}": returned_dict})
+    return response_with(resp.SUCCESS_200,
+                         value={f"total amount of likes from {date_from} to {date_to}": returned_dict})
 
 
+@analytics_route.route('/<username>/activity', methods=['GET'])
+def get_user_activity(username):
+    user = User.query.filter_by(username=username).first()
+    if user:
+        user_last_login = LoginHistory.query.filter_by(user_id=user.id).first()
 
+        # user last login can be None! User can sign up and not log in:)
+        if user_last_login:
+            return response_with(resp.SUCCESS_200, value={f"last login of {username}": user_last_login.last_time_login})
+
+        return response_with(resp.SUCCESS_200, value={f"last login of {username}": None})
+
+    return response_with(resp.INVALID_FIELD_NAME_SENT_422, value={'help': f"user {username} not found"})
