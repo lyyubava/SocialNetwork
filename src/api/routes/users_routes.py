@@ -2,6 +2,7 @@ from flask import Blueprint
 from flask import request, jsonify
 from api.utils.responses import response_with
 from api.utils import responses as resp
+from api.utils.jwt import jwt
 from api.models.models import User, UserSchema
 from api.models.models import Post, PostSchema
 from api.models.models import PostLikes
@@ -9,10 +10,22 @@ from flask_jwt_extended import create_access_token
 from flask_jwt_extended import jwt_required, get_jwt_identity
 from api.utils.database import db
 from sqlalchemy import and_, func
+from flask_jwt_extended import current_user
 
 user_routes = Blueprint("user_routes", __name__)
 like_route = Blueprint("like_route", __name__)
 analytics_route = Blueprint("analytics_route", __name__)
+
+
+@jwt.user_identity_loader
+def user_identity_lookup(user):
+    return user.id
+
+
+@jwt.user_lookup_loader
+def user_lookup_callback(_jwt_header, jwt_data):
+    identity = jwt_data["sub"]
+    return User.query.filter_by(id=identity).one_or_none()
 
 
 @user_routes.route('/signup', methods=['POST'])
@@ -34,12 +47,12 @@ def create_user():
 def authenticate_user():
     try:
         data = request.get_json()
-        current_user = User.query.filter_by(username=data['username']).first()
-        if not current_user:
+        user = User.query.filter_by(username=data['username']).first()
+        if not user:
             return response_with(resp.SERVER_ERROR_404)
-        if current_user.check_password(data['password']):
-            access_token = create_access_token(identity=data['username'])
-            return response_with(resp.SUCCESS_201, value={'message': 'Logged in as {}'.format(current_user.username),
+        if user.check_password(data['password']):
+            access_token = create_access_token(identity=user)
+            return response_with(resp.SUCCESS_201, value={'message': 'Logged in as {}'.format(user.username),
                                                           "access_token": access_token})
         else:
             return response_with(resp.UNAUTHORIZED_401)
@@ -89,11 +102,9 @@ def create_post():
 @like_route.route('/like.<action>', methods=['POST'])
 @jwt_required()
 def like_action(action):
-    current_user = get_jwt_identity()
-    # print(current_user)
     data = request.get_json()
     post_id = data["post_id"]
-    user_id = User.query.filter_by(username=current_user).first().id
+    user_id = User.query.filter_by(username=current_user.username).first().id
     post = Post.query.filter_by(id=post_id).first()
 
     if not post:
@@ -106,7 +117,6 @@ def like_action(action):
                 post.likes = 1
             else:
                 post.likes += 1
-            # db.session.commit()
             post_like = PostLikes(user_id=user_id, post_id=post_id)
 
             db.session.add(post_like)
@@ -141,5 +151,6 @@ def get_analytics():
         returned_dict[amount] = date
 
     return response_with(resp.SUCCESS_200, value={f"total amount of likes from {date_from} to {date_to}": returned_dict})
+
 
 
