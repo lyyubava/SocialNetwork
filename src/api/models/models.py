@@ -82,6 +82,8 @@ class PostSchema(ma.SQLAlchemySchema):
     id = fields.Integer(dump_only=True)
     title = fields.String(required=True)
     user_id = fields.Integer()
+    created = fields.DateTime()
+    likes = fields.Integer()
 
 
 class UserSchema(ma.SQLAlchemySchema):
