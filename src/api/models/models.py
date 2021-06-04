@@ -68,6 +68,13 @@ class LoginHistory(db.Model):
     last_time_login = db.Column(db.DateTime)
 
 
+class RequestHistory(db.Model):
+    id = db.Column(db.Integer, primary_key=True)
+    user_id = db.Column(db.Integer, db.ForeignKey('user.id'))
+    request_time = db.Column(db.DateTime)
+    description = db.Column(db.String(40))
+
+
 class PostSchema(ma.SQLAlchemySchema):
     class Meta:
         model = Post
