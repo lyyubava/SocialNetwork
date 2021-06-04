@@ -47,6 +47,11 @@ SUCCESS_204 = {
     'http_code': 204,
     'code': 'success'
 }
+UNAUTHORIZED_401 = {
+    "http_code": 401,
+    "code": "unAuthorized",
+    "message": "The parameter of authorization schemes are not acceptable"
+}
 
 
 def response_with(response, value=None, message=None, error=None, headers={}, pagination=None):
