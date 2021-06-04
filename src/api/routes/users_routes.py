@@ -96,8 +96,8 @@ def display_posts(username):
 @user_routes.route('/create_post', methods=['POST'])
 @jwt_required()
 def create_post():
-    username = get_jwt_identity()
-    user = User.query.filter_by(username=username).first()
+    user = User.query.filter_by(username=current_user.username).first()
+    print(user)
     if not user:
         return response_with(resp.INVALID_FIELD_NAME_SENT_422)
     data = request.get_json()
