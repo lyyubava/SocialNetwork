@@ -62,6 +62,12 @@ class PostLikes(db.Model):
         super(PostLikes, self).__init__(*args, **kwargs)
 
 
+class LoginHistory(db.Model):
+    id = db.Column(db.Integer, primary_key=True)
+    user_id = db.Column(db.Integer, db.ForeignKey('user.id'))
+    last_time_login = db.Column(db.DateTime)
+
+
 class PostSchema(ma.SQLAlchemySchema):
     class Meta:
         model = Post
