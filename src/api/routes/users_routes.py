@@ -67,10 +67,10 @@ def authenticate_user():
             access_token = create_access_token(identity=user)
             user_login_history = LoginHistory.query.filter_by(user_id=user.id).first()
             if user_login_history is None:
-                user_login_history = LoginHistory(user_id=user.id, last_time=datetime.now())
+                user_login_history = LoginHistory(user_id=user.id, last_time_login=datetime.now())
                 db.session.add(user_login_history)
             else:
-                user_login_history.last_time = datetime.now()
+                user_login_history.last_time_login = datetime.now()
             db.session.commit()
             return response_with(resp.SUCCESS_201, value={'message': 'Logged in as {}'.format(user.username),
                                                           "access_token": access_token})
@@ -85,7 +85,7 @@ def authenticate_user():
 @user_routes.route('/<string:username>', methods=['GET'])
 def get_user(username):
     fetch = User.query.filter_by(username=username).first()
-    user_schema = UserSchema()
+    user_schema = UserSchema(only=('email', "first_name", "last_name"))
     user = user_schema.dump(fetch)
     return response_with(resp.SUCCESS_200, value={"user": user})
 
@@ -96,7 +96,7 @@ def display_posts(username):
     if not user:
         return response_with(resp.INVALID_FIELD_NAME_SENT_422)
     posts = user.posts
-    post_schema = PostSchema()
+    post_schema = PostSchema(only=("title", "created", "likes"))
     posts_list = list()
     for post in posts:
         dumped_post = post_schema.dump(post)
@@ -109,7 +109,6 @@ def display_posts(username):
 @request_tracker
 def create_post():
     user = User.query.filter_by(username=current_user.username).first()
-    print(user)
     if not user:
         return response_with(resp.INVALID_FIELD_NAME_SENT_422)
     data = request.get_json()
@@ -125,6 +124,7 @@ def create_post():
 @request_tracker
 def like_action(action):
     data = request.get_json()
+    print(data)
     post_id = data["post_id"]
     user_id = User.query.filter_by(username=current_user.username).first().id
     post = Post.query.filter_by(id=post_id).first()
@@ -157,10 +157,10 @@ def like_action(action):
         else:
             return jsonify(message="you cannot unlike post that you haven`t liked :) ")
 
-    return response_with(resp.SUCCESS_20s1)
+    return response_with(resp.SUCCESS_201)
 
 
-@analytics_route.route('/', methods=['GET'])
+@analytics_route.route('/likes', methods=['GET'])
 def get_analytics():
     returned_dict = dict()
     data = request.get_json()
@@ -171,7 +171,7 @@ def get_analytics():
                                                                          PostLikes.like_time <= date_to)).group_by(
         func.date(PostLikes.like_time)).all()
     for amount, date in total:
-        returned_dict[amount] = date
+        returned_dict[str(date)] = amount
 
     return response_with(resp.SUCCESS_200,
                          value={f"total amount of likes from {date_from} to {date_to}": returned_dict})
@@ -182,25 +182,15 @@ def get_user_activity(username):
     user = User.query.filter_by(username=username).first()
     if user:
         user_last_login = LoginHistory.query.filter_by(user_id=user.id).first()
+        user_requests = RequestHistory.query.filter_by(user_id=user.id).order_by(
+            RequestHistory.request_time.desc()).all()
 
-        # user last login can be None! User can sign up and not log in:)
-        if user_last_login:
-            return response_with(resp.SUCCESS_200, value={f"last login of {username}": user_last_login.last_time_login})
-
-        return response_with(resp.SUCCESS_200, value={f"last login of {username}": None})
-
-    return response_with(resp.INVALID_FIELD_NAME_SENT_422, value={'help': f"user {username} not found"})
-
-
-@analytics_route.route('/<username>/requests',methods=['GET'])
-def get_request(username):
-    user = User.query.filter_by(username=username).first()
-    if user:
-        user_requests = RequestHistory.query.filter_by(user_id=user.id).order_by(RequestHistory.request_time.desc()).all()
         requests = [{str(req.request_time): req.description} for req in user_requests]
-        return response_with(resp.SUCCESS_200, value={f"{username}'s requests": requests})
+        if user_last_login:
+            return response_with(resp.SUCCESS_200, value={f"last login of {username}": user_last_login.last_time_login,
+                                                          "history_of_requests": requests})
+
+        return response_with(resp.SUCCESS_200,
+                             value={f"last login of {username}": None, "history_of_requests": requests})
+
     return response_with(resp.INVALID_FIELD_NAME_SENT_422, value={'help': f"user {username} not found"})
-
-
-
-
