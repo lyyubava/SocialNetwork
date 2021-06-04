@@ -22,7 +22,6 @@ analytics_route = Blueprint("analytics_route", __name__)
 
 def request_tracker(f):
     def wrapper(*args, **kwargs):
-        print("bitch")
         req = RequestHistory(user_id=current_user.id, request_time=datetime.now(), description=f.__name__)
         db.session.add(req)
         db.session.commit()
