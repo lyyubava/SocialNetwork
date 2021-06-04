@@ -11,6 +11,23 @@ from api.utils.database import db
 from sqlalchemy import and_, func
 
 user_routes = Blueprint("user_routes", __name__)
+like_route = Blueprint("like_route", __name__)
+analytics_route = Blueprint("analytics_route", __name__)
+
+
+@user_routes.route('/signup', methods=['POST'])
+def create_user():
+    try:
+        data = request.get_json()
+        user_schema = UserSchema()
+
+        user = User(**(user_schema.load(data)))
+        user.create()
+        return response_with(resp.SUCCESS_201)
+
+    except Exception as e:
+        print(e)
+        return response_with(resp.INVALID_INPUT_422)
 
 
 @user_routes.route('/login', methods=['POST'])
@@ -30,21 +47,6 @@ def authenticate_user():
     except Exception as e:
         print(e)
         return response_with(resp.UNAUTHORIZED_401)
-
-
-@user_routes.route('/', methods=['POST'])
-def create_user():
-    try:
-        data = request.get_json()
-        user_schema = UserSchema()
-
-        user = User(**(user_schema.load(data)))
-        user.create()
-        return response_with(resp.SUCCESS_201)
-
-    except Exception as e:
-        print(e)
-        return response_with(resp.INVALID_INPUT_422)
 
 
 @user_routes.route('/<string:username>', methods=['GET'])
@@ -69,9 +71,10 @@ def display_posts(username):
     return response_with(resp.SUCCESS_200, value={"post": posts_list})
 
 
-@user_routes.route('/<string:username>/create_post', methods=['POST'])
+@user_routes.route('/create_post', methods=['POST'])
 @jwt_required()
-def create_post(username):
+def create_post():
+    username = get_jwt_identity()
     user = User.query.filter_by(username=username).first()
     if not user:
         return response_with(resp.INVALID_FIELD_NAME_SENT_422)
@@ -83,11 +86,14 @@ def create_post(username):
     return response_with(resp.SUCCESS_201)
 
 
-@user_routes.route('/like.<action>', methods=['POST'])
+@like_route.route('/like.<action>', methods=['POST'])
+@jwt_required()
 def like_action(action):
+    current_user = get_jwt_identity()
+    # print(current_user)
     data = request.get_json()
     post_id = data["post_id"]
-    user_id = data["user_id"]
+    user_id = User.query.filter_by(username=current_user).first().id
     post = Post.query.filter_by(id=post_id).first()
 
     if not post:
@@ -122,7 +128,7 @@ def like_action(action):
     return response_with(resp.SUCCESS_201)
 
 
-@user_routes.route('/analytics', methods=['POST'])
+@analytics_route.route('/', methods=['GET'])
 def get_analytics():
     returned_dict = dict()
     data = request.get_json()
@@ -135,12 +141,5 @@ def get_analytics():
         returned_dict[amount] = date
 
     return response_with(resp.SUCCESS_200, value={f"total amount of likes from {date_from} to {date_to}": returned_dict})
-
-
-@user_routes.route("/protected", methods=["GET"])
-@jwt_required()
-def protected():
-    # Access the identity of the current user with get_jwt_identity
-    current_user = get_jwt_identity()
 
 
