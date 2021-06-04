@@ -8,7 +8,8 @@ from api.models.models import PostLikes
 from flask_jwt_extended import create_access_token
 from flask_jwt_extended import jwt_required, get_jwt_identity
 from api.utils.database import db
-from sqlalchemy import and_
+from sqlalchemy import and_, func
+
 user_routes = Blueprint("user_routes", __name__)
 
 
@@ -123,15 +124,18 @@ def like_action(action):
 
 @user_routes.route('/analytics', methods=['POST'])
 def get_analytics():
+    returned_dict = dict()
     data = request.get_json()
     date_from = data['date_from']
     date_to = data['date_to']
-    total = PostLikes.query.filter(and_(PostLikes.like_time >= date_from, PostLikes.like_time <= date_to)).count()
+    total = db.session.query(func.count(PostLikes.user_id),
+                             func.date(PostLikes.like_time)).filter(and_(PostLikes.like_time >= date_from,
+                                                                         PostLikes.like_time <= date_to)).group_by(func.date(PostLikes.like_time)).all()
+    for amount, date in total:
+        returned_dict[amount] = date
 
-    return response_with(resp.SUCCESS_200, value={f"total from {date_from} to {date_to}": total})
+    return response_with(resp.SUCCESS_200, value={f"total amount of likes from {date_from} to {date_to}": returned_dict})
 
-# Protect a route with jwt_required, which will kick out requests
-# without a valid JWT present.
 
 @user_routes.route("/protected", methods=["GET"])
 @jwt_required()
