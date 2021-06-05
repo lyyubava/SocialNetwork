@@ -15,7 +15,7 @@ git clone https://github.com/lyyubava/SocialNetworkAPI<br/>
 
 `curl -X POST -H "Content-Type: application/json" -d '{"first_name": "Test first name", "last_name":"Test last name", "email": "test@email.com", "password":"test password", "username":"testusername"}'  localhost:5000/api/users/signup` <br/>
 
-Fields first_name, last_name, email, username, password can not be blank. Also username must be unique. Otherwise you will get the following output:
+Fields first_name, last_name, email, username, password can not be blank. Also username must be unique. Otherwise you will get the following response:
 ` {
   "code": "InvalidInput", 
   "message": "Invalid input"
