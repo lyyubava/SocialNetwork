@@ -1,9 +1,9 @@
+import os
 class Configuration:
-    DB_USER = None  # provide db username!
-    DB_HOST = None  # provide db hostname!
-    DB_PASSWORD = None  # provide password!
-    # and last but not least
-    DB_NAME = None  # provide name of your db
+    DB_USER = 'root'
+    DB_HOST = 'db'
+    DB_PASSWORD = os.environ.get("DB_PASSWORD")
+    DB_NAME = 'SN'
 
     SQLALCHEMY_DATABASE_URI = f"mysql+pymysql://{DB_USER}:{DB_PASSWORD}@{DB_HOST}/{DB_NAME}"
     SQLALCHEMY_TRACK_MODIFICATIONS = False
