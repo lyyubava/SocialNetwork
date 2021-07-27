@@ -11,6 +11,7 @@ from api.utils.schema import ma
 # from flask_jwt_extended import JWTManager
 from api.utils.jwt import jwt
 from flask_migrate import Migrate
+import time
 
 app = Flask(__name__)
 app.config.from_object(Configuration)
@@ -48,8 +49,11 @@ ma.init_app(app)
 jwt.init_app(app)
 migrate = Migrate(app, db)
 migrate.init_app(app, db)
+time.sleep(40
+           )
+app.app_context().push()
+db.create_all()
 # with app.app_context():
 #     app.app_context().pop()
 #     app.app_context().push()
 #     db.create_all()
-#
