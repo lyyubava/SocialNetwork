@@ -1,0 +1,7 @@
+env/
+.git/
+.gitignore/
+.idea/
+.dockerignore
+Dockerfile
+docker-compose.yaml
